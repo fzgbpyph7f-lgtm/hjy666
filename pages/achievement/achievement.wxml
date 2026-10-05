@@ -1,0 +1,82 @@
+<view class="page">
+
+<!-- ===== 顶部环保贡献卡 ===== -->
+<view class="hero-card">
+  <view class="hero-blob"></view>
+  <view class="hero-ring"></view>
+
+  <view class="hero-label">我的环保贡献</view>
+
+  <view class="hero-stat">
+    <view class="stat-item">
+      <view class="stat-num">{{totalCount}}</view>
+      <view class="stat-unit">盒</view>
+    </view>
+    <view class="stat-text">已合规销毁过期药</view>
+  </view>
+
+  <view class="hero-metrics">
+    <view class="metric">
+      <view class="metric-num">{{carbonSaved}}<text class="metric-unit">g</text></view>
+      <view class="metric-label">减少碳排放</view>
+    </view>
+    <view class="metric-divider"></view>
+    <view class="metric">
+      <view class="metric-num">{{soilSaved}}<text class="metric-unit">m²</text></view>
+      <view class="metric-label">避免土壤污染</view>
+    </view>
+  </view>
+</view>
+
+<!-- ===== 勋章区 ===== -->
+<view class="section-title">环保勋章</view>
+
+<view class="medal-row">
+  <view
+    wx:for="{{medals}}"
+    wx:key="key"
+    class="medal-item {{item.unlocked ? 'unlocked' : 'locked'}}"
+  >
+    <view class="medal-circle {{item.color}}">
+      <view class="medal-inner">
+        <view class="medal-ring"></view>
+      </view>
+    </view>
+    <view class="medal-name">{{item.name}}</view>
+    <view class="medal-desc">{{item.desc}}</view>
+  </view>
+</view>
+
+<!-- ===== 回收订单记录 ===== -->
+<view class="section-title">回收记录</view>
+
+<view wx:if="{{orders.length === 0}}" class="empty-orders">
+  <view class="empty-ring"></view>
+  <view class="empty-text">还没有回收记录</view>
+  <view class="empty-hint">在「识别」页找到过期药，点击预约回收</view>
+</view>
+
+<view
+  wx:for="{{orders}}"
+  wx:key="id"
+  class="card order-item"
+  style="animation-delay: {{index * 60}}ms"
+>
+  <view class="order-head">
+    <view class="order-name">{{item.drugName}}</view>
+    <view class="order-status {{item.status}}">
+      {{item.status === 'done' ? '已回收' : '待上门'}}
+    </view>
+  </view>
+  <view class="order-meta">
+    <text class="meta-tag">{{item.category}}</text>
+    <text class="meta-time">{{item.timeText}}</text>
+  </view>
+</view>
+
+<!-- ===== 去回收按钮 ===== -->
+<button class="cta-btn" hover-class="btn-pressed" bindtap="goRecognize">
+  去识别更多药品
+</button>
+
+</view>

@@ -1,0 +1,99 @@
+<!--index.wxml-->
+<view class="page">
+
+<!-- ===== 顶部渐变 Hero ===== -->
+<view class="hero">
+  <view class="hero-blob blob-1"></view>
+  <view class="hero-blob blob-2"></view>
+  <view class="hero-ring"></view>
+
+  <view class="hero-content">
+    <view class="hero-badge">AI 药品管家</view>
+    <view class="hero-title">药安心</view>
+    <view class="hero-sub">拍照 1 秒识别过期药，一键对接京东上门回收</view>
+
+    <view class="hero-chips">
+      <view class="chip">智能识别</view>
+      <view class="chip">上门回收</view>
+      <view class="chip">药箱管理</view>
+    </view>
+  </view>
+</view>
+
+<!-- ===== 拍照卡片 ===== -->
+<view class="card camera-card" hover-class="camera-pressed" hover-stay-time="60" bindtap="takePhoto">
+
+  <!-- 空状态：扫描框 + 相机图标 -->
+  <block wx:if="{{!imageUrl}}">
+    <view class="corner tl"></view>
+    <view class="corner tr"></view>
+    <view class="corner bl"></view>
+    <view class="corner br"></view>
+    <view class="scan-line"></view>
+
+    <view class="placeholder">
+      <view class="camera-shape"></view>
+      <view class="main-text">点击拍摄药盒</view>
+      <view class="hint">请对准药盒正面的有效期区域</view>
+    </view>
+  </block>
+
+  <!-- 已选图：预览 -->
+  <image wx:else src="{{imageUrl}}" mode="aspectFit" class="preview" />
+</view>
+
+<!-- ===== 加载状态 ===== -->
+<view wx:if="{{loading}}" class="card loading-card">
+  <view class="pill-loader">
+    <view class="pill"></view>
+    <view class="pill"></view>
+    <view class="pill"></view>
+  </view>
+  <view class="loading-text">AI 识别中…</view>
+</view>
+
+<!-- ===== 识别结果 ===== -->
+<view wx:if="{{result}}" class="card result-card {{result.status}}">
+  <view class="result-deco"></view>
+
+  <view class="status-bar {{result.status}}">
+    <view class="status-shine"></view>
+    <view class="status-dot"></view>
+    <text wx:if="{{result.status === 'expired'}}">已过期 {{-result.daysLeft}} 天</text>
+    <text wx:elif="{{result.status === 'warning'}}">还有 {{result.daysLeft}} 天过期</text>
+    <text wx:else>有效期正常</text>
+  </view>
+
+  <view class="drug-name">{{result.drugName}}</view>
+
+  <view class="tag-row">
+    <view class="tag category">{{result.category}}</view>
+    <view class="tag usage">{{result.usage}}</view>
+  </view>
+
+  <view class="info-row">
+    <text class="label">有效期至</text>
+    <text class="value">{{result.expiryDate}}</text>
+  </view>
+  <view class="info-row" wx:if="{{result.batchNumber}}">
+    <text class="label">生产批号</text>
+    <text class="value">{{result.batchNumber}}</text>
+  </view>
+
+  <view wx:if="{{result.status === 'expired'}}" class="action-tip">
+    该药品已过期，请勿服用。可预约京东上门回收，合规销毁。
+  </view>
+  <view wx:elif="{{result.status === 'warning'}}" class="action-tip warning-tip">
+    即将过期，建议优先使用。已为你加入药箱提醒。
+  </view>
+
+  <button wx:if="{{result.status === 'expired'}}" class="btn-primary" hover-class="btn-pressed" bindtap="goToRecycle">
+    预约京东上门回收
+  </button>
+
+  <button class="btn-ghost" hover-class="btn-pressed" bindtap="reset">重新识别</button>
+</view>
+
+<view class="footer-tip">识别记录自动存入「我的药箱」</view>
+
+</view>

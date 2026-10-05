@@ -1,0 +1,100 @@
+ <view class="page">
+
+<!-- ===== 数据看板 ===== -->
+<view class="dashboard">
+  <view class="dash-glow"></view>
+  <view class="dash-ring"></view>
+
+  <view class="dash-item">
+    <view class="dash-num">{{total}}</view>
+    <view class="dash-label">药品种类</view>
+  </view>
+  <view class="dash-divider"></view>
+  <view class="dash-item">
+    <view class="dash-num danger">{{expiredCount}}</view>
+    <view class="dash-label">已过期</view>
+  </view>
+  <view class="dash-divider"></view>
+  <view class="dash-item">
+    <view class="dash-num warning">{{warningCount}}</view>
+    <view class="dash-label">临期</view>
+  </view>
+</view>
+<!-- ===== 药箱健康评分卡 ===== -->
+<view class="health-card {{health.level}}">
+  <view class="health-left">
+    <view class="health-label">药箱健康度</view>
+    <view class="health-score">
+      <text class="score-num">{{health.score}}</text>
+      <text class="score-unit">分</text>
+    </view>
+    <view class="health-tip">{{health.tip}}</view>
+  </view>
+
+  <view class="health-right">
+    <view class="ring-outer" style="background: conic-gradient({{health.ringColor}} 0deg {{health.percent}}deg, {{health.bgColor}} {{health.percent}}deg 360deg);">
+      <view class="ring-progress" style="transform: rotate({{health.rotate}}deg)"></view>
+      <view class="ring-mask"></view>
+    </view>
+  </view>
+</view>
+
+
+<!-- ===== 筛选 ===== -->
+<view class="filter-row">
+  <view
+    wx:for="{{filters}}"
+    wx:key="key"
+    class="filter-item {{activeFilter === item.key ? 'active' : ''}}"
+    data-key="{{item.key}}"
+    bindtap="changeFilter"
+  >{{item.label}}</view>
+</view>
+
+<!-- ===== 空状态：CSS 漂浮胶囊 ===== -->
+<view wx:if="{{filteredList.length === 0}}" class="empty">
+  <view class="empty-illust">
+    <view class="capsule cap-1"></view>
+    <view class="capsule cap-2"></view>
+    <view class="capsule cap-3"></view>
+    <view class="empty-base"></view>
+  </view>
+  <view class="empty-text">暂无药品记录</view>
+  <view class="empty-hint">去「识别」页拍一盒药试试吧</view>
+</view>
+
+<!-- ===== 药品列表 ===== -->
+<view
+  wx:for="{{filteredList}}"
+  wx:key="id"
+  class="card drug-item {{item.status}}"
+  style="animation-delay: {{index * 60}}ms"
+>
+  <view class="side-bar"></view>
+
+  <view class="drug-head">
+    <view class="drug-name">{{item.drugName}}</view>
+    <view class="status-dot {{item.status}}"></view>
+  </view>
+
+  <view class="drug-meta">
+    <text class="meta-tag">{{item.category}}</text>
+    <text class="meta-text">{{item.usage}}</text>
+  </view>
+
+  <view class="drug-bottom">
+    <text class="expiry {{item.status}}">
+      <block wx:if="{{item.status === 'expired'}}">已过期 {{-item.daysLeft}} 天</block>
+      <block wx:elif="{{item.status === 'warning'}}">还有 {{item.daysLeft}} 天过期</block>
+      <block wx:else>有效期至 {{item.expiryDate}}</block>
+    </text>
+    <text class="delete-btn" catchtap="deleteItem" data-id="{{item.id}}">删除</text>
+  </view>
+</view>
+
+<!-- ===== 清空 ===== -->
+<button wx:if="{{total > 0}}" class="clear-btn" hover-class="btn-pressed" bindtap="clearAll">
+  清空药箱
+</button>
+
+</view>
