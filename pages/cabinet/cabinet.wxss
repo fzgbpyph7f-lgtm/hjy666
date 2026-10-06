@@ -330,3 +330,22 @@
   border-radius: 50%;
   background: #fff;
 }
+/* ============ 药品卡片操作区 ============ */
+.drug-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.recycle-btn {
+  font-size: 24rpx;
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #e1251b, #ff5a4d);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(225, 37, 27, 0.25);
+  transition: transform 0.18s ease;
+}
+.recycle-btn:active {
+  transform: scale(0.94);
+}

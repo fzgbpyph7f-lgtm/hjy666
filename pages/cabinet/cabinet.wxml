@@ -83,13 +83,22 @@
   </view>
 
   <view class="drug-bottom">
-    <text class="expiry {{item.status}}">
-      <block wx:if="{{item.status === 'expired'}}">已过期 {{-item.daysLeft}} 天</block>
-      <block wx:elif="{{item.status === 'warning'}}">还有 {{item.daysLeft}} 天过期</block>
-      <block wx:else>有效期至 {{item.expiryDate}}</block>
-    </text>
+  <text class="expiry {{item.status}}">
+    <block wx:if="{{item.status === 'expired'}}">已过期 {{-item.daysLeft}} 天</block>
+    <block wx:elif="{{item.status === 'warning'}}">还有 {{item.daysLeft}} 天过期</block>
+    <block wx:else>有效期至 {{item.expiryDate}}</block>
+  </text>
+
+  <view class="drug-actions">
+    <text
+      wx:if="{{item.status === 'expired'}}"
+      class="recycle-btn"
+      catchtap="goToRecycle"
+      data-id="{{item.id}}"
+    >预约京东回收</text>
     <text class="delete-btn" catchtap="deleteItem" data-id="{{item.id}}">删除</text>
   </view>
+</view>
 </view>
 
 <!-- ===== 清空 ===== -->

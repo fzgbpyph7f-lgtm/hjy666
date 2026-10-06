@@ -1,64 +1,79 @@
 //index.js
 const cloud = require('wx-server-sdk')
-const axios = require('axios')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+const axios = require('axios')
+
+// 正面提示词：提取药名、批准文号、厂家、规格
+const PROMPT_FRONT = `你是药品包装识别助手。这是药盒的正面照片。只返回一个JSON对象（不要用markdown代码块包裹）：
+{
+  "drugName": "药品通用名（必填，如：阿莫西林胶囊）",
+  "tradeName": "商品名，没有则null",
+  "approvalNumber": "批准文号，如：国药准字H20033456，找不到则null",
+  "manufacturer": "生产企业全称，找不到则null",
+  "specification": "规格（如0.25g、10片/盒），找不到则null",
+  "confidence": "high/medium/low"
+}`
+
+// 侧面提示词：提取生产日期、有效期
+const PROMPT_SIDE = `你是药品包装识别助手。这是药盒的侧面/封口照片，请重点寻找钢印或喷码。只返回一个JSON对象（不要用markdown代码块包裹）：
+{
+  "productionDate": "生产日期，YYYY-MM-DD格式，找不到则null",
+  "expiryDate": "有效期至，YYYY-MM-DD格式，找不到则null",
+  "validityMonths": "有效期月数（数字），如36，找不到则null",
+  "batchNumber": "生产批号，找不到则null",
+  "confidence": "high/medium/low"
+}
+注意：如果印的是"有效期至2026/05"这种格式，expiryDate返回"2026-05-01"。`
 
 exports.main = async (event) => {
-  const { fileID } = event
+  const { fileID, mode } = event
+  if (!fileID) return { success: false, msg: '缺少图片fileID' }
 
-  const res = await cloud.getTempFileURL({ fileList: [fileID] })
-  const imageUrl = res.fileList[0].tempFileURL
-
-  const apiKey = process.env.QWEN_API_KEY
+  const prompt = mode === 'side' ? PROMPT_SIDE : PROMPT_FRONT
 
   try {
-    const response = await axios.post(
-      'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    const file = await cloud.downloadFile({ fileID })
+    const base64 = file.fileContent.toString('base64')
+
+    const resp = await axios.post(
+      'https://api.moonshot.cn/v1/chat/completions',
       {
-        model: 'qwen-vl-ocr',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: imageUrl } },
-            {
-              type: 'text',
-              text: '请从这张药品包装图片中提取信息，以JSON格式返回，不要输出其他内容：{"drugName":"药品名称","expiryDate":"有效期截止日期(格式YYYY-MM-DD)","batchNumber":"批号","manufacturer":"生产厂家"}'
-            }
-          ]
-        }]
+        model: 'kimi-k2.6',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: { url: `data:image/jpeg;base64,${base64}` }
+              },
+              { type: 'text', text: prompt }
+            ]
+          }
+        ]
       },
       {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${process.env.MOONSHOT_API_KEY}`,
           'Content-Type': 'application/json'
         },
-        timeout: 50000
+        timeout: 60000
       }
     )
 
-    const aiText = response.data.choices[0].message.content
-    const jsonMatch = aiText.match(/\{[\s\S]*\}/)
+    const text = resp.data.choices[0].message.content
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-      return { code: -1, message: '识别失败，请手动输入', raw: aiText }
+      return { success: false, msg: '识别失败，未返回有效JSON', raw: text }
     }
 
-    const drugInfo = JSON.parse(jsonMatch[0])
+    const data = JSON.parse(jsonMatch[0])
+    return { success: true, mode: mode || 'front', data }
 
-    const expiry = new Date(drugInfo.expiryDate)
-    const now = new Date()
-    const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
-
-    let status
-    if (daysLeft < 0) status = 'expired'
-    else if (daysLeft <= 90) status = 'warning'
-    else status = 'normal'
-
-    return {
-      code: 0,
-      data: { ...drugInfo, daysLeft, status }
-    }
   } catch (err) {
-    console.error(err)
-    return { code: -1, message: 'AI服务调用失败', error: err.message }
+    console.error('=== ERROR ===')
+    console.error('message:', err.message)
+    console.error('data:', JSON.stringify(err.response?.data, null, 2))
+    return { success: false, msg: '识别失败: ' + (err.response?.data?.error?.message || err.message) }
   }
 }

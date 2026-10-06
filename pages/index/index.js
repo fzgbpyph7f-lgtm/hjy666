@@ -4,100 +4,189 @@ const RECYCLE_KEY = 'recycleOrders'
 
 Page({
   data: {
-    imageUrl: '',
-    result: null,
+    step: 'front',        // front: 等拍正面 | side: 等拍侧面 | done: 识别完成
+    frontImage: '',
+    sideImage: '',
+    frontResult: null,    // 正面识别结果
+    result: null,         // 最终合并结果
     loading: false,
-    useMock: true   // 有AppID并部署云函数后改成 false
+    useMock: false
   },
 
+  // 拍照：根据当前 step 决定拍哪个面
   takePhoto() {
+    if (this.data.step === 'done') {
+      wx.showToast({ title: '已完成识别', icon: 'none' })
+      return
+    }
+
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['camera', 'album'],
       sizeType: ['compressed'],
       success: (res) => {
-        const tempPath = res.tempFiles[0].tempFilePath
-        this.setData({ imageUrl: tempPath, result: null })
-        this.uploadAndRecognize(tempPath)
+        const path = res.tempFiles[0].tempFilePath
+
+        if (this.data.step === 'front') {
+          this.setData({ frontImage: path })
+          this.recognizeFront(path)
+        } else if (this.data.step === 'side') {
+          this.setData({ sideImage: path })
+          this.recognizeSide(path)
+        }
       }
     })
   },
 
-  async uploadAndRecognize(filePath) {
-    this.setData({ loading: true })
+  // 第一步：识别正面
+  async recognizeFront(filePath) {
+    this.setData({ loading: true, result: null })
 
-    // ===== Mock 模式 =====
+    // Mock 模式
     if (this.data.useMock) {
-      const mockList = [
-        {
-          drugName: '阿莫西林胶囊',
-          category: '抗生素',
-          usage: '呼吸道感染',
-          expiryDate: '2025-03-15',
-          batchNumber: '20230101',
-          daysLeft: -200,
-          status: 'expired'
-        },
-        {
-          drugName: '布洛芬缓释胶囊',
-          category: '解热镇痛',
-          usage: '退烧 / 止痛',
-          expiryDate: '2026-11-25',
-          batchNumber: '20240315',
-          daysLeft: 51,
-          status: 'warning'
-        },
-        {
-          drugName: '维生素C片',
-          category: '维生素',
-          usage: '补充维C',
-          expiryDate: '2027-08-20',
-          batchNumber: '20240901',
-          daysLeft: 680,
-          status: 'normal'
-        }
-      ]
-      const pick = mockList[Math.floor(Math.random() * mockList.length)]
-
       setTimeout(() => {
-        this.setData({ loading: false, result: pick })
-        this.saveToCabinet(pick)
+        const front = {
+          drugName: '阿莫西林胶囊',
+          approvalNumber: '国药准字H20033456',
+          manufacturer: '某制药有限公司',
+          specification: '0.25g×24粒'
+        }
+        this.setData({
+          loading: false,
+          step: 'side',
+          frontResult: front
+        })
+        wx.showToast({ title: '正面识别完成，请拍侧面', icon: 'none', duration: 2000 })
       }, 1500)
       return
     }
 
-    // ===== 真实模式：调用云函数 =====
     try {
-      const cloudPath = `drugs/${Date.now()}.jpg`
-      const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath })
-
-      const recognizeRes = await wx.cloud.callFunction({
-        name: 'recognizeDrug',
-        data: { fileID: uploadRes.fileID }
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath: `drugs/${Date.now()}_front.jpg`,
+        filePath
       })
 
-      const res = recognizeRes.result
-      if (res.code === 0) {
-        this.setData({ result: res.data })
-        this.saveToCabinet(res.data)
-      } else {
-        wx.showToast({ title: '识别失败，请重试', icon: 'none' })
+      const r = await wx.cloud.callFunction({
+        name: 'recognizeDrug',
+        data: { fileID: uploadRes.fileID, mode: 'front' }
+      })
+
+      // 删掉云存储原图
+      wx.cloud.deleteFile({ fileList: [uploadRes.fileID] })
+
+      const res = r.result
+      if (!res.success) {
+        wx.showToast({ title: res.msg || '正面识别失败', icon: 'none' })
+        this.setData({ loading: false, step: 'front' })
+        return
       }
 
-      wx.cloud.deleteFile({ fileList: [uploadRes.fileID] })
+      this.setData({
+        loading: false,
+        step: 'side',
+        frontResult: res.data
+      })
+      wx.showToast({ title: '正面已识别，请拍侧面', icon: 'none', duration: 2000 })
+
     } catch (err) {
       console.error(err)
       wx.showToast({ title: '网络错误', icon: 'none' })
-    } finally {
+      this.setData({ loading: false, step: 'front' })
+    }
+  },
+
+  // 第二步：识别侧面，合并结果
+  async recognizeSide(filePath) {
+    this.setData({ loading: true })
+
+    // Mock 模式
+    if (this.data.useMock) {
+      setTimeout(() => {
+        const side = {
+          expiryDate: '2025-03-15',
+          productionDate: '2023-03-15',
+          batchNumber: '20230101',
+          validityMonths: 24
+        }
+        this.mergeAndSave(side)
+      }, 1500)
+      return
+    }
+
+    try {
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath: `drugs/${Date.now()}_side.jpg`,
+        filePath
+      })
+
+      const r = await wx.cloud.callFunction({
+        name: 'recognizeDrug',
+        data: { fileID: uploadRes.fileID, mode: 'side' }
+      })
+
+      wx.cloud.deleteFile({ fileList: [uploadRes.fileID] })
+
+      const res = r.result
+      if (!res.success) {
+        wx.showToast({ title: res.msg || '侧面识别失败', icon: 'none' })
+        this.setData({ loading: false })
+        return
+      }
+
+      this.mergeAndSave(res.data)
+
+    } catch (err) {
+      console.error(err)
+      wx.showToast({ title: '网络错误', icon: 'none' })
       this.setData({ loading: false })
     }
   },
 
-  // 存入本地药箱
+  // 合并正面+侧面结果
+  mergeAndSave(side) {
+    const front = this.data.frontResult || {}
+
+    // 计算有效期
+    let expiryDate = side.expiryDate
+    if (!expiryDate && side.productionDate && side.validityMonths) {
+      const d = new Date(side.productionDate)
+      d.setMonth(d.getMonth() + Number(side.validityMonths))
+      expiryDate = d.toISOString().slice(0, 10)
+    }
+
+    const expiry = expiryDate ? new Date(expiryDate) : null
+    const now = new Date()
+    const daysLeft = expiry ? Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)) : null
+
+    let status = 'unknown'
+    if (daysLeft !== null) {
+      if (daysLeft < 0) status = 'expired'
+      else if (daysLeft <= 90) status = 'warning'
+      else status = 'normal'
+    }
+
+    const result = {
+      drugName: front.drugName || '未知药品',
+      category: front.tradeName || '其他',
+      usage: front.specification || '',
+      expiryDate: expiryDate || '待补充',
+      batchNumber: side.batchNumber || front.approvalNumber || '',
+      daysLeft: daysLeft,
+      status: status
+    }
+
+    this.setData({
+      loading: false,
+      step: 'done',
+      result
+    })
+    this.saveToCabinet(result)
+  },
+
   saveToCabinet(item) {
     const list = wx.getStorageSync(STORAGE_KEY) || []
-    // 按药品名 + 批号去重
     const exists = list.some(
       d => d.drugName === item.drugName && d.batchNumber === item.batchNumber
     )
@@ -111,38 +200,31 @@ Page({
     wx.setStorageSync(STORAGE_KEY, list)
   },
 
-  // 跳转京东回收（同时写入回收订单）
   goToRecycle() {
-    // ===== 先记录回收订单 =====
     const order = {
       id: Date.now(),
       drugName: this.data.result.drugName,
       category: this.data.result.category,
       recycleTime: Date.now(),
-      status: 'pending'   // pending 待上门 / done 已回收
+      status: 'pending'
     }
     const orders = wx.getStorageSync(RECYCLE_KEY) || []
     orders.unshift(order)
     wx.setStorageSync(RECYCLE_KEY, orders)
 
-    // ===== Mock 模式 =====
     if (this.data.useMock) {
       wx.showModal({
         title: '预约成功',
-        content: '已记录回收订单，京东小哥将上门取药（模拟）',
+        content: '已记录回收订单（模拟）',
         showCancel: false
       })
       return
     }
 
-    // ===== 真实跳转京东小程序 =====
     wx.navigateToMiniProgram({
       appId: 'wx91d27dbf599dff74',
       path: 'pages/union/proxy/proxy',
-      extraData: {
-        drugName: this.data.result.drugName,
-        source: 'yaoanxin'
-      },
+      extraData: { drugName: this.data.result.drugName, source: 'yaoanxin' },
       fail: () => {
         wx.showModal({
           title: '跳转失败',
@@ -153,7 +235,14 @@ Page({
     })
   },
 
+  // 重头开始
   reset() {
-    this.setData({ imageUrl: '', result: null })
+    this.setData({
+      step: 'front',
+      frontImage: '',
+      sideImage: '',
+      frontResult: null,
+      result: null
+    })
   }
 })

@@ -10,12 +10,12 @@
   <view class="hero-content">
     <view class="hero-badge">AI 药品管家</view>
     <view class="hero-title">药安心</view>
-    <view class="hero-sub">拍照 1 秒识别过期药，一键对接京东上门回收</view>
+    <view class="hero-sub">拍照识别药品信息 · 建立家庭药箱 · 过期自动提醒</view>
 
     <view class="hero-chips">
-      <view class="chip">智能识别</view>
-      <view class="chip">上门回收</view>
+      <view class="chip">药品识别</view>
       <view class="chip">药箱管理</view>
+      <view class="chip">过期回收</view>
     </view>
   </view>
 </view>
@@ -23,8 +23,8 @@
 <!-- ===== 拍照卡片 ===== -->
 <view class="card camera-card" hover-class="camera-pressed" hover-stay-time="60" bindtap="takePhoto">
 
-  <!-- 空状态：扫描框 + 相机图标 -->
-  <block wx:if="{{!imageUrl}}">
+  <!-- step 1: 等拍正面 -->
+  <block wx:if="{{step === 'front'}}">
     <view class="corner tl"></view>
     <view class="corner tr"></view>
     <view class="corner bl"></view>
@@ -33,13 +33,55 @@
 
     <view class="placeholder">
       <view class="camera-shape"></view>
-      <view class="main-text">点击拍摄药盒</view>
-      <view class="hint">请对准药盒正面的有效期区域</view>
+      <view class="main-text">点击拍摄药盒正面</view>
+      <view class="shoot-guide">
+        <view class="guide-step">
+          <view class="step-num">1</view>
+          <view class="step-text">药名、批准文号、厂家</view>
+        </view>
+      </view>
     </view>
   </block>
 
-  <!-- 已选图：预览 -->
-  <image wx:else src="{{imageUrl}}" mode="aspectFit" class="preview" />
+  <!-- step 2: 正面已拍，等拍侧面 -->
+  <block wx:elif="{{step === 'side'}}">
+    <view class="shot-done">
+      <image src="{{frontImage}}" mode="aspectFit" class="shot-thumb" />
+      <view class="shot-label">✓ 正面已识别</view>
+    </view>
+    <view class="shot-next">
+      <view class="next-icon">+</view>
+      <view class="next-text">点击拍摄药盒侧面</view>
+      <view class="next-hint">生产日期 / 有效期 / 批号</view>
+    </view>
+  </block>
+
+  <!-- step 3: 完成 -->
+  <block wx:else>
+    <view class="shot-pair">
+      <image src="{{frontImage}}" mode="aspectFit" class="shot-half" />
+      <image src="{{sideImage}}" mode="aspectFit" class="shot-half" />
+    </view>
+    <view class="shot-label-pair">识别完成</view>
+  </block>
+
+</view>
+
+<!-- ===== 正面中间结果卡片 ===== -->
+<view wx:if="{{step === 'side' && frontResult}}" class="card front-result-card">
+  <view class="front-result-title">✓ 正面识别结果</view>
+  <view class="front-result-row">
+    <text class="label">药品名称</text>
+    <text class="value">{{frontResult.drugName}}</text>
+  </view>
+  <view wx:if="{{frontResult.approvalNumber}}" class="front-result-row">
+    <text class="label">批准文号</text>
+    <text class="value">{{frontResult.approvalNumber}}</text>
+  </view>
+  <view wx:if="{{frontResult.specification}}" class="front-result-row">
+    <text class="label">规格</text>
+    <text class="value">{{frontResult.specification}}</text>
+  </view>
 </view>
 
 <!-- ===== 加载状态 ===== -->
@@ -52,7 +94,7 @@
   <view class="loading-text">AI 识别中…</view>
 </view>
 
-<!-- ===== 识别结果 ===== -->
+<!-- ===== 最终识别结果 ===== -->
 <view wx:if="{{result}}" class="card result-card {{result.status}}">
   <view class="result-deco"></view>
 
@@ -61,6 +103,7 @@
     <view class="status-dot"></view>
     <text wx:if="{{result.status === 'expired'}}">已过期 {{-result.daysLeft}} 天</text>
     <text wx:elif="{{result.status === 'warning'}}">还有 {{result.daysLeft}} 天过期</text>
+    <text wx:elif="{{result.status === 'unknown'}}">有效期待补充</text>
     <text wx:else>有效期正常</text>
   </view>
 
@@ -76,7 +119,7 @@
     <text class="value">{{result.expiryDate}}</text>
   </view>
   <view class="info-row" wx:if="{{result.batchNumber}}">
-    <text class="label">生产批号</text>
+    <text class="label">生产批号 / 批准文号</text>
     <text class="value">{{result.batchNumber}}</text>
   </view>
 
@@ -92,6 +135,11 @@
   </button>
 
   <button class="btn-ghost" hover-class="btn-pressed" bindtap="reset">重新识别</button>
+</view>
+
+<!-- ===== 重拍按钮 ===== -->
+<view wx:if="{{step !== 'front' && !loading && !result}}" class="reset-shots" bindtap="reset">
+  重新识别
 </view>
 
 <view class="footer-tip">识别记录自动存入「我的药箱」</view>

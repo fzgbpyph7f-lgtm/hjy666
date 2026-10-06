@@ -10,17 +10,29 @@
     "navigationBarTitleText": "药安心",
     "navigationBarTextStyle": "white"
   },
+  "lazyCodeLoading": "requiredComponents",
   "tabBar": {
     "color": "#999999",
     "selectedColor": "#4f7cff",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
-      { "pagePath": "pages/index/index", "text": "识别" },
-      { "pagePath": "pages/cabinet/cabinet", "text": "药箱" },
-      { "pagePath": "pages/achievement/achievement", "text": "环保成就" }
+      {
+        "pagePath": "pages/index/index",
+        "text": "识别"
+      },
+      {
+        "pagePath": "pages/cabinet/cabinet",
+        "text": "药箱"
+      },
+      {
+        "pagePath": "pages/achievement/achievement",
+        "text": "环保成就"
+      }
     ]
   },
-  "navigateToMiniProgramAppIdList": ["wx91d27dbf599dff74"],
+  "navigateToMiniProgramAppIdList": [
+    "wx91d27dbf599dff74"
+  ],
   "sitemapLocation": "sitemap.json"
 }
